@@ -1,10 +1,12 @@
 // ==UserScript==
-// @name         物流订单上网率统计助手 (Debug增强+多维图表+可拖拽版)
+// @name         物流订单上网率统计助手v8.3
 // @namespace    http://tampermonkey.net/
-// @version      8.2
+// @version      8.3
 // @description  统计OMP物流上网率，支持Excel导出，含五大多维ECharts看板，悬浮按钮支持自由拖拽与开关切换
 // @author       AI Assistant
 // @match        *://*.xlwms.com/*
+// @updateURL    https://github.com/uik6/cloud-mail/raw/refs/heads/main/doc/index.user.js
+// @downloadURL  https://github.com/uik6/cloud-mail/raw/refs/heads/main/doc/index.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
