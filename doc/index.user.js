@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         物流订单上网率统计助手v8.3
 // @namespace    http://tampermonkey.net/
-// @version      8.3
+// @version      8.4
 // @description  统计OMP物流上网率，支持Excel导出，含五大多维ECharts看板，悬浮按钮支持自由拖拽与开关切换
 // @author       AI Assistant
 // @match        *://*.xlwms.com/*
@@ -47,21 +47,21 @@
 
     function normalizeSkuInventoryRow(row, dim) {
         const normalized = {
-            customerName: pickSkuField(row, ['customerName', '客户名称', '瀹㈡埛鍚嶇О', '鐎广垺鍩涢崥宥囆?'], ''),
-            customerCode: pickSkuField(row, ['customerCode', '客户编码', '瀹㈡埛缂栫爜', '鐎广垺鍩涚紓鏍垳'], ''),
-            whName: pickSkuField(row, ['whName', '发货仓库', '鍙戣揣浠撳簱'], ''),
-            whCode: pickSkuField(row, ['whCode', '仓库代码', '浠撳簱浠ｇ爜'], ''),
+            customerName: pickSkuField(row, ['customerName', '客户名称'], ''),
+            customerCode: pickSkuField(row, ['customerCode', '客户编码'], ''),
+            whName: pickSkuField(row, ['whName', '发货仓库'], ''),
+            whCode: pickSkuField(row, ['whCode', '仓库代码'], ''),
             sku: pickSkuField(row, ['sku', 'SKU'], ''),
-            productName: pickSkuField(row, ['productName', '产品名称', '浜у搧鍚嶇О'], ''),
-            skuCount: Number(pickSkuField(row, ['skuCount', 'SKU数', 'SKU鏁?'], 0)),
-            warehouseCount: Number(pickSkuField(row, ['warehouseCount', '仓库数', '浠撳簱鏁?'], 0)),
-            customerCount: Number(pickSkuField(row, ['customerCount', '客户数', '瀹㈡埛鏁?'], 0)),
-            preStockQty: Number(pickSkuField(row, ['preStockQty', '期初库存', '鏈熷垵搴撳瓨'], 0)),
-            closeStockQty: Number(pickSkuField(row, ['closeStockQty', '期末库存', '鏈熸湯搴撳瓨'], 0)),
-            outboundBookQty: Number(pickSkuField(row, ['outboundBookQty', '出库预占', '鍑哄簱棰勫崰'], 0)),
-            stockTurnoverRate: Number(pickSkuField(row, ['stockTurnoverRate', '库存周转率', '搴撳瓨鍛ㄨ浆鐜?'], 0)),
-            stockTurnoverDays: Number(pickSkuField(row, ['stockTurnoverDays', '库存周转天数', '搴撳瓨鍛ㄨ浆澶╂暟'], 0)),
-            stockSaleRate: Number(pickSkuField(row, ['stockSaleRate', '库存售罄率', '搴撳瓨鍞絼鐜?'], 0))
+            productName: pickSkuField(row, ['productName', '产品名称'], ''),
+            skuCount: Number(pickSkuField(row, ['skuCount', 'SKU数'], 0)),
+            warehouseCount: Number(pickSkuField(row, ['warehouseCount', '仓库数'], 0)),
+            customerCount: Number(pickSkuField(row, ['customerCount', '客户数'], 0)),
+            preStockQty: Number(pickSkuField(row, ['preStockQty', '期初库存'], 0)),
+            closeStockQty: Number(pickSkuField(row, ['closeStockQty', '期末库存'], 0)),
+            outboundBookQty: Number(pickSkuField(row, ['outboundBookQty', '出库预占'], 0)),
+            stockTurnoverRate: Number(pickSkuField(row, ['stockTurnoverRate', '库存周转率'], 0)),
+            stockTurnoverDays: Number(pickSkuField(row, ['stockTurnoverDays', '库存周转天数'], 0)),
+            stockSaleRate: Number(pickSkuField(row, ['stockSaleRate', '库存售罄率'], 0))
         };
         return dim ? { ...row, ...normalized, __dim: dim } : { ...row, ...normalized };
     }
@@ -106,16 +106,16 @@
 
         const detailGroupMap = {};
         skuInventoryReportData.detailRows.forEach((row) => {
-            const customerKey = `${row["瀹㈡埛缂栫爜"] || ''}__${row["瀹㈡埛鍚嶇О"] || ''}`;
+            const customerKey = `${row.customerCode || ''}__${row.customerName || ''}`;
             if (!detailGroupMap[customerKey]) detailGroupMap[customerKey] = [];
             detailGroupMap[customerKey].push(row);
         });
 
         const groups = skuInventoryReportData.customerRows
             .slice()
-            .sort((a, b) => a["瀹㈡埛鍚嶇О"].localeCompare(b["瀹㈡埛鍚嶇О"], 'zh-Hans-CN') || (a["瀹㈡埛缂栫爜"] || '').localeCompare(b["瀹㈡埛缂栫爜"] || ''))
+            .sort((a, b) => (a.customerName || '').localeCompare(b.customerName || '', 'zh-Hans-CN') || (a.customerCode || '').localeCompare(b.customerCode || ''))
             .map((customerRow) => {
-                const customerKey = `${customerRow["瀹㈡埛缂栫爜"] || ''}__${customerRow["瀹㈡埛鍚嶇О"] || ''}`;
+                const customerKey = `${customerRow.customerCode || ''}__${customerRow.customerName || ''}`;
                 return { customerRow, rows: detailGroupMap[customerKey] || [] };
             })
             .filter((group) => group.rows.length > 0);
@@ -132,8 +132,8 @@
             const pieId = `sr-sku-inventory-customer-pie-${index}`;
             const barId = `sr-sku-inventory-customer-bar-${index}`;
             card.innerHTML = `
-                <div class="sr-inventory-card-title">${customerRow["瀹㈡埛鍚嶇О"]}</div>
-                <div class="sr-inventory-card-meta">SKU数 ${customerRow["SKU数"]} ｜ 期末库存 ${customerRow["期末库存"]}</div>
+                <div class="sr-inventory-card-title">${customerRow.customerName || '-'}</div>
+                <div class="sr-inventory-card-meta">SKU数 ${customerRow.skuCount || 0} ｜ 期末库存 ${customerRow.closeStockQty || 0}</div>
                 <div class="sr-inventory-card-charts">
                     <div id="${pieId}" class="sr-inventory-card-box-half"></div>
                     <div id="${barId}" class="sr-inventory-card-box-half"></div>
@@ -555,7 +555,7 @@
 
     function isReceiptWithinHours(createTimeStr, receiptTimeStr, thresholdHours) {
         const hoursDiff = getHoursDiff(createTimeStr, receiptTimeStr);
-        return Number.isFinite(hoursDiff) && hoursDiff >= 0 && hoursDiff <= Number(thresholdHours || 0);
+        return Number.isFinite(hoursDiff) && hoursDiff <= Number(thresholdHours || 0);
     }
 
     function isOnlineInSampleWindow(record, thresholdHours) {
@@ -565,6 +565,17 @@
         }
         const outboundTime = String(record?.outboundTime || '').trim();
         return Boolean(outboundTime);
+    }
+
+    function formatOnlineDuration(hoursDiff) {
+        if (!Number.isFinite(hoursDiff)) return '-';
+        const sign = hoursDiff < 0 ? '-' : '';
+        const totalMinutes = Math.abs(Math.round(hoursDiff * 60));
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        if (hours === 0) return `${sign}${minutes}分`;
+        if (minutes === 0) return `${sign}${hours}小时`;
+        return `${sign}${hours}小时${minutes}分`;
     }
 
     function buildOnlineRateWindow(startDateStr, endDateStr) {
@@ -1391,21 +1402,21 @@
         return {
             ...row,
             __dim: dim || row.__dim || 'detail',
-            customerName: pickSkuFieldSafe(row, ['customerName', '客户名称', '瀹㈡埛鍚嶇О'], ''),
-            customerCode: pickSkuFieldSafe(row, ['customerCode', '客户编码', '瀹㈡埛缂栫爜'], ''),
-            whName: pickSkuFieldSafe(row, ['whName', '发货仓库', '鍙戣揣浠撳簱'], ''),
-            whCode: pickSkuFieldSafe(row, ['whCode', '仓库代码', '浠撳簱浠ｇ爜'], ''),
+            customerName: pickSkuFieldSafe(row, ['customerName', '客户名称'], ''),
+            customerCode: pickSkuFieldSafe(row, ['customerCode', '客户编码'], ''),
+            whName: pickSkuFieldSafe(row, ['whName', '发货仓库'], ''),
+            whCode: pickSkuFieldSafe(row, ['whCode', '仓库代码'], ''),
             sku: pickSkuFieldSafe(row, ['sku', 'SKU'], ''),
-            productName: pickSkuFieldSafe(row, ['productName', '产品名称', '浜у搧鍚嶇О'], ''),
-            skuCount: Number(pickSkuFieldSafe(row, ['skuCount', 'SKU数', 'SKU鏁?'], 0)),
-            warehouseCount: Number(pickSkuFieldSafe(row, ['warehouseCount', '仓库数', '浠撳簱鏁?'], 0)),
-            customerCount: Number(pickSkuFieldSafe(row, ['customerCount', '客户数', '瀹㈡埛鏁?'], 0)),
-            preStockQty: Number(pickSkuFieldSafe(row, ['preStockQty', '期初库存', '鏈熷垵搴撳瓨'], 0)),
-            closeStockQty: Number(pickSkuFieldSafe(row, ['closeStockQty', '期末库存', '鏈熸湯搴撳瓨'], 0)),
-            outboundBookQty: Number(pickSkuFieldSafe(row, ['outboundBookQty', '出库预占', '鍑哄簱棰勫崰'], 0)),
-            stockTurnoverRate: Number(pickSkuFieldSafe(row, ['stockTurnoverRate', '库存周转率', '搴撳瓨鍛ㄨ浆鐜?'], 0)),
-            stockTurnoverDays: Number(pickSkuFieldSafe(row, ['stockTurnoverDays', '库存周转天数', '搴撳瓨鍛ㄨ浆澶╂暟'], 0)),
-            stockSaleRate: Number(pickSkuFieldSafe(row, ['stockSaleRate', '库存售罄率', '搴撳瓨鍞絼鐜?'], 0))
+            productName: pickSkuFieldSafe(row, ['productName', '产品名称'], ''),
+            skuCount: Number(pickSkuFieldSafe(row, ['skuCount', 'SKU数'], 0)),
+            warehouseCount: Number(pickSkuFieldSafe(row, ['warehouseCount', '仓库数'], 0)),
+            customerCount: Number(pickSkuFieldSafe(row, ['customerCount', '客户数'], 0)),
+            preStockQty: Number(pickSkuFieldSafe(row, ['preStockQty', '期初库存'], 0)),
+            closeStockQty: Number(pickSkuFieldSafe(row, ['closeStockQty', '期末库存'], 0)),
+            outboundBookQty: Number(pickSkuFieldSafe(row, ['outboundBookQty', '出库预占'], 0)),
+            stockTurnoverRate: Number(pickSkuFieldSafe(row, ['stockTurnoverRate', '库存周转率'], 0)),
+            stockTurnoverDays: Number(pickSkuFieldSafe(row, ['stockTurnoverDays', '库存周转天数'], 0)),
+            stockSaleRate: Number(pickSkuFieldSafe(row, ['stockSaleRate', '库存售罄率'], 0))
         };
     }
 
@@ -4603,6 +4614,8 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
 
     // 数据状态
     let finalReportData = {}, warehouseReportData = {}, customerReportData = {}, warehouseChannelReportData = {}, extendedData = {};
+    let onlineRateDetailRows = [];
+    let onlineRateDetailBuckets = { 'offline': [], '24h': [], '48h': [], '72h': [] };
     let dateLabels = { '24h': '', '48h': '', '72h': '' };
     const charts = { bar: null, line: null, pie: null, rose: null, radar: null, outboundLine: null, outboundBar: null, regionBar: null, regionPie: null, regionDetailPies: [], inventoryPie: null, inventoryBar: null, inventoryCustomerCharts: [], skuInventoryPie: null, skuInventoryBar: null, skuInventoryCustomerCharts: [], skuSalesCustomerBar: null, skuSalesSkuBar: null, skuSalesTrend: null, skuSalesCustomerCharts: [], reportPreview: null };
     let outboundReportData = { rows: [], startDate: '', endDate: '', summary: { warehouseCount: 0, avg24: 0, avg48: 0, avg72: 0 } };
@@ -4809,6 +4822,7 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                             <div>24H、48H、72H 分别统计这同一批订单在创建后 24 / 48 / 72 小时内完成上网的比例，因此 48H 会包含 24H，72H 会包含 24H / 48H，整体呈递增趋势；若缺少上网时间但有出库时间（outboundTime），则按已上网兜底计入。</div>
                             <div>切换到“按物流渠道查看”时，可通过仓库筛选查看某个仓库内各渠道的上网率表现。</div>
                             <div>表格里的百分比为样本内在对应时效完成上网的订单数 ÷ 样本总订单数，括号内显示具体单量。</div>
+                            <div>订单明细会按首次命中的时效归类为 24H上网、48H上网、72H上网 或 未上网，可再按仓库和结果筛选查看。</div>
                         </div>
                         <table class="sr-table" id="sr-result-table">
                             <thead><tr><th id="th-dim-name" style="width: 25%">维度名称</th><th id="th-24h">24H上网率</th><th id="th-48h">48H上网率</th><th id="th-72h">72H上网率</th></tr></thead>
@@ -4819,6 +4833,45 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                         <div id="chart-bar" class="echarts-box"></div><div class="chart-divider"></div>
                         <div class="chart-row"><div id="chart-pie" class="echarts-box-half"></div><div id="chart-rose" class="echarts-box-half"></div></div><div class="chart-divider"></div>
                         <div id="chart-radar" class="echarts-box" style="height:400px;"></div>
+                        <div class="sr-note-block" style="margin-top:15px;">
+                            <div class="sr-note-title">订单明细</div>
+                            <div class="sr-controls" style="margin-top:8px; margin-bottom:0; flex-wrap:wrap;">
+                                <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#333;">
+                                    <span>仓库筛选</span>
+                                    <select id="sr-online-detail-warehouse" class="sr-select" style="width:220px;">
+                                        <option value="">全部仓库</option>
+                                    </select>
+                                </label>
+                                <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#333;">
+                                    <span>结果筛选</span>
+                                    <select id="sr-online-detail-status" class="sr-select" style="width:220px;">
+                                        <option value="all">全部订单</option>
+                                        <option value="offline">未上网</option>
+                                        <option value="24h">24H上网</option>
+                                        <option value="48h">48H上网</option>
+                                        <option value="72h">72H上网</option>
+                                    </select>
+                                </label>
+                                <div id="sr-online-detail-summary" class="sr-inventory-summary">请先点击【拉取上网率数据】。</div>
+                            </div>
+                        </div>
+                        <table class="sr-table" id="sr-online-detail-table">
+                            <thead>
+                                <tr>
+                                    <th>订单号</th>
+                                    <th>来源单号</th>
+                                    <th>客户名称</th>
+                                    <th>发货仓库</th>
+                                    <th>物流渠道</th>
+                                    <th>创建时间</th>
+                                    <th>上网时间</th>
+                                    <th>出库时间</th>
+                                    <th>上网时长</th>
+                                    <th>判定结果</th>
+                                </tr>
+                            </thead>
+                            <tbody><tr><td colspan="10" style="color:#999; padding:30px 0;">暂无订单明细，请点击【拉取上网率数据】</td></tr></tbody>
+                        </table>
                     </div>
 
                     <div id="sr-view-outbound" class="sr-view">
@@ -5455,11 +5508,13 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
         document.getElementById('sr-outbound-export').onclick = exportOutboundExcel;
         document.getElementById('sr-dimension-select').addEventListener('change', () => {
             syncOnlineRateFilterState();
-            if (Object.keys(finalReportData).length > 0) { renderTable(); renderCharts(); }
+            if (Object.keys(finalReportData).length > 0) { renderTable(); renderCharts(); renderOnlineRateDetailTable(); }
         });
         document.getElementById('sr-warehouse-filter').addEventListener('change', () => {
-            if (Object.keys(finalReportData).length > 0) { renderTable(); renderCharts(); }
+            if (Object.keys(finalReportData).length > 0) { renderTable(); renderCharts(); renderOnlineRateDetailTable(); }
         });
+        document.getElementById('sr-online-detail-warehouse').addEventListener('change', renderOnlineRateDetailTable);
+        document.getElementById('sr-online-detail-status').addEventListener('change', renderOnlineRateDetailTable);
 
         // 周期绑定事件
         document.getElementById('sr-period-btn').onclick = startPeriodProcess;
@@ -5604,6 +5659,155 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
         if (!isChannelView) select.value = '';
     }
 
+    function getOnlineRateJudgeBucket(rate24, rate48, rate72) {
+        if (rate24) return '24h';
+        if (rate48) return '48h';
+        if (rate72) return '72h';
+        return 'offline';
+    }
+
+    function buildOnlineRateJudgeLabel(judgeBucket) {
+        const labelMap = {
+            all: '全部订单',
+            offline: '未上网',
+            '24h': '24H上网',
+            '48h': '48H上网',
+            '72h': '72H上网'
+        };
+        return labelMap[judgeBucket] || '未上网';
+    }
+
+    function getOnlineRateDetailSelectedWarehouse() {
+        return document.getElementById('sr-online-detail-warehouse')?.value || '';
+    }
+
+    function getOnlineRateDetailSelectedStatus() {
+        return document.getElementById('sr-online-detail-status')?.value || 'all';
+    }
+
+    function buildOnlineRateDetailRow(record, rate24, rate48, rate72) {
+        const judgeBucket = getOnlineRateJudgeBucket(rate24, rate48, rate72);
+        const receiptTime = record?.receiptTime || '';
+        const outboundTime = record?.outboundTime || '';
+        const onlineTime = receiptTime || outboundTime || '';
+        const detailRow = {
+            orderNo: record?.deliveryNo || '',
+            sourceNo: record?.sourceNo || record?.referOrderNo || record?.platformOrderNo || '',
+            customerName: record?.customerName || '未知客户',
+            whName: record?.whCodeName || '未知仓',
+            channelName: record?.logisticsChannel || '未知渠道',
+            createTime: record?.createTime || '',
+            receiptTime,
+            outboundTime,
+            onlineDuration: formatOnlineDuration(getHoursDiff(record?.createTime, onlineTime)),
+            judgeBucket,
+            judgeLabel: buildOnlineRateJudgeLabel(judgeBucket),
+            rate24,
+            rate48,
+            rate72
+        };
+        return detailRow;
+    }
+
+    function sortOnlineRateDetailRows(rows = []) {
+        return rows.slice().sort((left, right) =>
+            String(left.createTime || '').localeCompare(String(right.createTime || ''))
+            || String(left.whName || '').localeCompare(String(right.whName || ''), 'zh-Hans-CN')
+            || String(left.channelName || '').localeCompare(String(right.channelName || ''), 'zh-Hans-CN')
+            || String(left.orderNo || '').localeCompare(String(right.orderNo || ''))
+        );
+    }
+
+    function getOnlineRateFilteredDetailRows() {
+        const selectedWarehouse = getOnlineRateDetailSelectedWarehouse();
+        const selectedStatus = getOnlineRateDetailSelectedStatus();
+        return onlineRateDetailRows.filter((row) => {
+            if (selectedWarehouse && row.whName !== selectedWarehouse) return false;
+            if (selectedStatus !== 'all' && row.judgeBucket !== selectedStatus) return false;
+            return true;
+        });
+    }
+
+    function updateOnlineDetailWarehouseOptions() {
+        const select = document.getElementById('sr-online-detail-warehouse');
+        if (!select) return;
+        const previousValue = select.value || '';
+        const warehouseNames = Array.from(new Set(onlineRateDetailRows.map((row) => row.whName).filter(Boolean)))
+            .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+
+        select.innerHTML = '<option value="">全部仓库</option>';
+        warehouseNames.forEach((warehouseName) => {
+            const option = document.createElement('option');
+            option.value = warehouseName;
+            option.textContent = warehouseName;
+            select.appendChild(option);
+        });
+
+        if (previousValue && warehouseNames.includes(previousValue)) {
+            select.value = previousValue;
+        }
+    }
+
+    function updateOnlineDetailStatusOptions() {
+        const select = document.getElementById('sr-online-detail-status');
+        if (!select) return;
+
+        const selectedWarehouse = getOnlineRateDetailSelectedWarehouse();
+        const scopeRows = selectedWarehouse
+            ? onlineRateDetailRows.filter((row) => row.whName === selectedWarehouse)
+            : onlineRateDetailRows;
+        const counts = {
+            all: scopeRows.length,
+            offline: scopeRows.filter((row) => row.judgeBucket === 'offline').length,
+            '24h': scopeRows.filter((row) => row.judgeBucket === '24h').length,
+            '48h': scopeRows.filter((row) => row.judgeBucket === '48h').length,
+            '72h': scopeRows.filter((row) => row.judgeBucket === '72h').length
+        };
+
+        Array.from(select.options).forEach((option) => {
+            option.text = `${buildOnlineRateJudgeLabel(option.value)}（${counts[option.value] || 0}）`;
+        });
+    }
+
+    function renderOnlineRateDetailTable() {
+        const tbody = document.querySelector('#sr-online-detail-table tbody');
+        const summary = document.getElementById('sr-online-detail-summary');
+        if (!tbody || !summary) return;
+
+        updateOnlineDetailStatusOptions();
+        const rows = getOnlineRateFilteredDetailRows();
+        const selectedWarehouse = getOnlineRateDetailSelectedWarehouse();
+        const selectedStatus = getOnlineRateDetailSelectedStatus();
+        const statusLabel = buildOnlineRateJudgeLabel(selectedStatus);
+
+        summary.innerText = rows.length === 0
+            ? `当前筛选下暂无订单明细${selectedWarehouse ? `（当前仓库：${selectedWarehouse}）` : ''}${selectedStatus !== 'all' ? `（当前结果：${statusLabel}）` : ''}`
+            : `订单明细共 ${rows.length} 单${selectedWarehouse ? `（当前仓库：${selectedWarehouse}）` : ''}${selectedStatus !== 'all' ? `（当前结果：${statusLabel}）` : ''}`;
+
+        tbody.innerHTML = '';
+        if (rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" style="color:#999; padding:30px 0;">当前条件下暂无订单明细</td></tr>';
+            return;
+        }
+
+        rows.forEach((row) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row.orderNo || '-'}</td>
+                <td>${row.sourceNo || '-'}</td>
+                <td>${row.customerName || '-'}</td>
+                <td>${row.whName || '-'}</td>
+                <td>${row.channelName || '-'}</td>
+                <td>${row.createTime || '-'}</td>
+                <td>${row.receiptTime || '-'}</td>
+                <td>${row.outboundTime || '-'}</td>
+                <td>${row.onlineDuration || '-'}</td>
+                <td>${row.judgeLabel || '-'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
     function renderTable() {
         const { dataObj = {}, dimName } = getOnlineRateDimensionMeta();
 
@@ -5688,6 +5892,10 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                 const rate24 = isOnlineInSampleWindow(r, 24);
                 const rate48 = isOnlineInSampleWindow(r, 48);
                 const rate72 = isOnlineInSampleWindow(r, 72);
+                const detailRow = buildOnlineRateDetailRow(r, rate24, rate48, rate72);
+
+                onlineRateDetailRows.push(detailRow);
+                onlineRateDetailBuckets[detailRow.judgeBucket].push(detailRow);
 
                 appendOnlineRateStats(ensureOnlineRateDimension(finalReportData, channel), rate24, rate48, rate72);
                 appendOnlineRateStats(ensureOnlineRateDimension(warehouseReportData, whName), rate24, rate48, rate72);
@@ -5705,6 +5913,14 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                 document.getElementById('sr-status').innerText = `正在获取固定样本上网率数据... (${current}/${pages}页)`;
             }
         );
+
+        onlineRateDetailRows = sortOnlineRateDetailRows(onlineRateDetailRows);
+        onlineRateDetailBuckets = {
+            offline: sortOnlineRateDetailRows(onlineRateDetailBuckets.offline),
+            '24h': sortOnlineRateDetailRows(onlineRateDetailBuckets['24h']),
+            '48h': sortOnlineRateDetailRows(onlineRateDetailBuckets['48h']),
+            '72h': sortOnlineRateDetailRows(onlineRateDetailBuckets['72h'])
+        };
     }
 
     async function startOnlineRateProcess() {
@@ -5713,9 +5929,15 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
         startBtn.disabled = true; exportBtn.disabled = true;
 
         finalReportData = {}; warehouseReportData = {}; customerReportData = {}; warehouseChannelReportData = {};
+        onlineRateDetailRows = [];
+        onlineRateDetailBuckets = { offline: [], '24h': [], '48h': [], '72h': [] };
         extendedData = { trend: { '24h': {t:0,o:0}, '48h': {t:0,o:0}, '72h': {t:0,o:0} } };
         updateOnlineWarehouseFilterOptions();
+        updateOnlineDetailWarehouseOptions();
         syncOnlineRateFilterState();
+        document.getElementById('sr-online-detail-status').value = 'all';
+        document.getElementById('sr-online-detail-warehouse').value = '';
+        renderOnlineRateDetailTable();
 
         const skipWeekends = document.getElementById('sr-skip-weekends').checked;
         const sampleRange = getOnlineRateSampleRange(skipWeekends);
@@ -5728,8 +5950,9 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
             }
             await fetchOnlineRateCohort(sampleRange.startStr, sampleRange.endStr, skipWeekends);
             updateOnlineWarehouseFilterOptions();
+            updateOnlineDetailWarehouseOptions();
             syncOnlineRateFilterState();
-            renderTable(); renderCharts();
+            renderTable(); renderCharts(); renderOnlineRateDetailTable();
             document.getElementById('sr-status').innerText = '🎉 上网率数据渲染完成！';
             exportBtn.disabled = false;
         } catch (error) { document.getElementById('sr-status').innerText = `❌ 错误: ${error.message}`; }
@@ -5765,10 +5988,31 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                         "72H 详情": `${row['72h'].online} / ${row['72h'].total}`
                     };
                 }));
+        const detailHeaders = ["订单号", "来源单号", "客户名称", "发货仓库", "物流渠道", "创建时间", "上网时间", "出库时间", "上网时长", "判定结果", "24H结果", "48H结果", "72H结果"];
+        const genDetailSheet = (rows) => (rows || []).map((row) => ({
+            "订单号": row.orderNo || '',
+            "来源单号": row.sourceNo || '',
+            "客户名称": row.customerName || '',
+            "发货仓库": row.whName || '',
+            "物流渠道": row.channelName || '',
+            "创建时间": row.createTime || '',
+            "上网时间": row.receiptTime || '',
+            "出库时间": row.outboundTime || '',
+            "上网时长": row.onlineDuration || '',
+            "判定结果": row.judgeLabel || '',
+            "24H结果": row.rate24 ? '已上网' : '未上网',
+            "48H结果": row.rate48 ? '已上网' : '未上网',
+            "72H结果": row.rate72 ? '已上网' : '未上网'
+        }));
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genSheet(finalReportData, "渠道名称")), "按渠道上网率");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genSheet(warehouseReportData, "发货仓库")), "按仓库上网率");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genSheet(customerReportData, "客户名称")), "按客户上网率");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genWarehouseChannelSheet()), "按仓库渠道上网率");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genDetailSheet(onlineRateDetailRows), { header: detailHeaders }), "样本订单明细");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genDetailSheet(onlineRateDetailBuckets.offline), { header: detailHeaders }), "未上网明细");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genDetailSheet(onlineRateDetailBuckets['24h']), { header: detailHeaders }), "24H上网明细");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genDetailSheet(onlineRateDetailBuckets['48h']), { header: detailHeaders }), "48H上网明细");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genDetailSheet(onlineRateDetailBuckets['72h']), { header: detailHeaders }), "72H上网明细");
         XLSX.writeFile(wb, `物流上网率统计_${formatDateStandard(new Date())}.xlsx`);
     }
 
