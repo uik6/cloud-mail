@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         物流订单上网率统计助手v8.3
+// @name         物流订单上网率统计助手v8.5
 // @namespace    http://tampermonkey.net/
-// @version      8.4
+// @version      8.5
 // @description  统计OMP物流上网率，支持Excel导出，含五大多维ECharts看板，悬浮按钮支持自由拖拽与开关切换
 // @author       AI Assistant
 // @match        *://*.xlwms.com/*
@@ -565,6 +565,21 @@
         }
         const outboundTime = String(record?.outboundTime || '').trim();
         return Boolean(outboundTime);
+    }
+
+    function isCancelledOrder(record) {
+        return String(record?.status ?? '').trim() === '99';
+    }
+
+    function isOnlineOver72Hours(record) {
+        const receiptTime = String(record?.receiptTime || '').trim();
+        if (!receiptTime) return false;
+        const hoursDiff = getHoursDiff(record?.createTime, receiptTime);
+        return Number.isFinite(hoursDiff) && hoursDiff > 72;
+    }
+
+    function shouldIncludeInOnlineRateStats(record) {
+        return !isCancelledOrder(record) && !isOnlineOver72Hours(record);
     }
 
     function formatOnlineDuration(hoursDiff) {
@@ -4615,7 +4630,7 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
     // 数据状态
     let finalReportData = {}, warehouseReportData = {}, customerReportData = {}, warehouseChannelReportData = {}, extendedData = {};
     let onlineRateDetailRows = [];
-    let onlineRateDetailBuckets = { 'offline': [], '24h': [], '48h': [], '72h': [] };
+    let onlineRateDetailBuckets = { 'offline': [], '24h': [], '48h': [], '72h': [], 'over72h': [], 'cancelled': [] };
     let dateLabels = { '24h': '', '48h': '', '72h': '' };
     const charts = { bar: null, line: null, pie: null, rose: null, radar: null, outboundLine: null, outboundBar: null, regionBar: null, regionPie: null, regionDetailPies: [], inventoryPie: null, inventoryBar: null, inventoryCustomerCharts: [], skuInventoryPie: null, skuInventoryBar: null, skuInventoryCustomerCharts: [], skuSalesCustomerBar: null, skuSalesSkuBar: null, skuSalesTrend: null, skuSalesCustomerCharts: [], reportPreview: null };
     let outboundReportData = { rows: [], startDate: '', endDate: '', summary: { warehouseCount: 0, avg24: 0, avg48: 0, avg72: 0 } };
@@ -4821,8 +4836,8 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                             <div>按所选创建日期范围内的订单作为固定样本，并按物流渠道、发货仓库或客户名称聚合展示；默认预置最近 3 个统计日样本。</div>
                             <div>24H、48H、72H 分别统计这同一批订单在创建后 24 / 48 / 72 小时内完成上网的比例，因此 48H 会包含 24H，72H 会包含 24H / 48H，整体呈递增趋势；若缺少上网时间但有出库时间（outboundTime），则按已上网兜底计入。</div>
                             <div>切换到“按物流渠道查看”时，可通过仓库筛选查看某个仓库内各渠道的上网率表现。</div>
-                            <div>表格里的百分比为样本内在对应时效完成上网的订单数 ÷ 样本总订单数，括号内显示具体单量。</div>
-                            <div>订单明细会按首次命中的时效归类为 24H上网、48H上网、72H上网 或 未上网，可再按仓库和结果筛选查看。</div>
+                            <div>表格里的百分比为样本内在对应时效完成上网的订单数 ÷ 纳入统计的订单数，括号内显示具体单量；已取消（status=99）及上网时间超过 72H 的订单不计入总数。</div>
+                            <div>订单明细会按首次命中的时效归类为 24H上网、48H上网、72H上网、已上网（超过72H）、已取消或未上网，可再按仓库和结果筛选查看。</div>
                         </div>
                         <table class="sr-table" id="sr-result-table">
                             <thead><tr><th id="th-dim-name" style="width: 25%">维度名称</th><th id="th-24h">24H上网率</th><th id="th-48h">48H上网率</th><th id="th-72h">72H上网率</th></tr></thead>
@@ -4835,6 +4850,7 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                         <div id="chart-radar" class="echarts-box" style="height:400px;"></div>
                         <div class="sr-note-block" style="margin-top:15px;">
                             <div class="sr-note-title">订单明细</div>
+                            <div style="margin-top:6px; color:#d46b08; font-size:13px;">说明：“已上网（超过72H）”和“已取消”的订单仅在明细中展示，不计入总数统计。</div>
                             <div class="sr-controls" style="margin-top:8px; margin-bottom:0; flex-wrap:wrap;">
                                 <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#333;">
                                     <span>仓库筛选</span>
@@ -4850,6 +4866,8 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                                         <option value="24h">24H上网</option>
                                         <option value="48h">48H上网</option>
                                         <option value="72h">72H上网</option>
+                                        <option value="over72h">已上网（超过72H）</option>
+                                        <option value="cancelled">已取消</option>
                                     </select>
                                 </label>
                                 <div id="sr-online-detail-summary" class="sr-inventory-summary">请先点击【拉取上网率数据】。</div>
@@ -4931,7 +4949,7 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                             <div class="sr-note-title">统计与分析说明</div>
                             <div>按所选日期范围逐页抓取订单数据，再按物流渠道、发货仓库或客户名称聚合，统计整个周期内的平均表现。</div>
                             <div>勾选“排除周末”时，会直接跳过创建时间落在周六、周日的订单。</div>
-                            <div>24H / 48H / 72H 平均达标率分别表示订单在创建后 24 / 48 / 72 小时内完成上网的比例；周期总单量为纳入统计的订单量。</div>
+                            <div>24H / 48H / 72H 平均达标率分别表示订单在创建后 24 / 48 / 72 小时内完成上网的比例；周期总单量不含已取消（status=99）及上网时间超过 72H 的订单。</div>
                         </div>
 
                         <div class="sr-badges">
@@ -5659,10 +5677,12 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
         if (!isChannelView) select.value = '';
     }
 
-    function getOnlineRateJudgeBucket(rate24, rate48, rate72) {
+    function getOnlineRateJudgeBucket(record, rate24, rate48, rate72) {
+        if (isCancelledOrder(record)) return 'cancelled';
         if (rate24) return '24h';
         if (rate48) return '48h';
         if (rate72) return '72h';
+        if (isOnlineOver72Hours(record)) return 'over72h';
         return 'offline';
     }
 
@@ -5672,7 +5692,9 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
             offline: '未上网',
             '24h': '24H上网',
             '48h': '48H上网',
-            '72h': '72H上网'
+            '72h': '72H上网',
+            over72h: '已上网（超过72H）',
+            cancelled: '已取消'
         };
         return labelMap[judgeBucket] || '未上网';
     }
@@ -5686,7 +5708,7 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
     }
 
     function buildOnlineRateDetailRow(record, rate24, rate48, rate72) {
-        const judgeBucket = getOnlineRateJudgeBucket(rate24, rate48, rate72);
+        const judgeBucket = getOnlineRateJudgeBucket(record, rate24, rate48, rate72);
         const receiptTime = record?.receiptTime || '';
         const outboundTime = record?.outboundTime || '';
         const onlineTime = receiptTime || outboundTime || '';
@@ -5761,7 +5783,9 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
             offline: scopeRows.filter((row) => row.judgeBucket === 'offline').length,
             '24h': scopeRows.filter((row) => row.judgeBucket === '24h').length,
             '48h': scopeRows.filter((row) => row.judgeBucket === '48h').length,
-            '72h': scopeRows.filter((row) => row.judgeBucket === '72h').length
+            '72h': scopeRows.filter((row) => row.judgeBucket === '72h').length,
+            over72h: scopeRows.filter((row) => row.judgeBucket === 'over72h').length,
+            cancelled: scopeRows.filter((row) => row.judgeBucket === 'cancelled').length
         };
 
         Array.from(select.options).forEach((option) => {
@@ -5897,17 +5921,19 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                 onlineRateDetailRows.push(detailRow);
                 onlineRateDetailBuckets[detailRow.judgeBucket].push(detailRow);
 
-                appendOnlineRateStats(ensureOnlineRateDimension(finalReportData, channel), rate24, rate48, rate72);
-                appendOnlineRateStats(ensureOnlineRateDimension(warehouseReportData, whName), rate24, rate48, rate72);
-                appendOnlineRateStats(ensureOnlineRateDimension(customerReportData, customer), rate24, rate48, rate72);
+                if (shouldIncludeInOnlineRateStats(r)) {
+                    appendOnlineRateStats(ensureOnlineRateDimension(finalReportData, channel), rate24, rate48, rate72);
+                    appendOnlineRateStats(ensureOnlineRateDimension(warehouseReportData, whName), rate24, rate48, rate72);
+                    appendOnlineRateStats(ensureOnlineRateDimension(customerReportData, customer), rate24, rate48, rate72);
 
-                if (!warehouseChannelReportData[whName]) warehouseChannelReportData[whName] = {};
-                appendOnlineRateStats(ensureOnlineRateDimension(warehouseChannelReportData[whName], channel), rate24, rate48, rate72);
+                    if (!warehouseChannelReportData[whName]) warehouseChannelReportData[whName] = {};
+                    appendOnlineRateStats(ensureOnlineRateDimension(warehouseChannelReportData[whName], channel), rate24, rate48, rate72);
 
-                ['24h', '48h', '72h'].forEach((key) => { extendedData.trend[key].t += 1; });
-                if (rate24) extendedData.trend['24h'].o += 1;
-                if (rate48) extendedData.trend['48h'].o += 1;
-                if (rate72) extendedData.trend['72h'].o += 1;
+                    ['24h', '48h', '72h'].forEach((key) => { extendedData.trend[key].t += 1; });
+                    if (rate24) extendedData.trend['24h'].o += 1;
+                    if (rate48) extendedData.trend['48h'].o += 1;
+                    if (rate72) extendedData.trend['72h'].o += 1;
+                }
             },
             (current, pages) => {
                 document.getElementById('sr-status').innerText = `正在获取固定样本上网率数据... (${current}/${pages}页)`;
@@ -5919,7 +5945,9 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
             offline: sortOnlineRateDetailRows(onlineRateDetailBuckets.offline),
             '24h': sortOnlineRateDetailRows(onlineRateDetailBuckets['24h']),
             '48h': sortOnlineRateDetailRows(onlineRateDetailBuckets['48h']),
-            '72h': sortOnlineRateDetailRows(onlineRateDetailBuckets['72h'])
+            '72h': sortOnlineRateDetailRows(onlineRateDetailBuckets['72h']),
+            over72h: sortOnlineRateDetailRows(onlineRateDetailBuckets.over72h),
+            cancelled: sortOnlineRateDetailRows(onlineRateDetailBuckets.cancelled)
         };
     }
 
@@ -5930,7 +5958,7 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
 
         finalReportData = {}; warehouseReportData = {}; customerReportData = {}; warehouseChannelReportData = {};
         onlineRateDetailRows = [];
-        onlineRateDetailBuckets = { offline: [], '24h': [], '48h': [], '72h': [] };
+        onlineRateDetailBuckets = { offline: [], '24h': [], '48h': [], '72h': [], over72h: [], cancelled: [] };
         extendedData = { trend: { '24h': {t:0,o:0}, '48h': {t:0,o:0}, '72h': {t:0,o:0} } };
         updateOnlineWarehouseFilterOptions();
         updateOnlineDetailWarehouseOptions();
@@ -6013,6 +6041,8 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genDetailSheet(onlineRateDetailBuckets['24h']), { header: detailHeaders }), "24H上网明细");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genDetailSheet(onlineRateDetailBuckets['48h']), { header: detailHeaders }), "48H上网明细");
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genDetailSheet(onlineRateDetailBuckets['72h']), { header: detailHeaders }), "72H上网明细");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genDetailSheet(onlineRateDetailBuckets.over72h), { header: detailHeaders }), "超过72H已上网明细");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(genDetailSheet(onlineRateDetailBuckets.cancelled), { header: detailHeaders }), "已取消明细");
         XLSX.writeFile(wb, `物流上网率统计_${formatDateStandard(new Date())}.xlsx`);
     }
 
@@ -6075,6 +6105,8 @@ body { margin:0; background:#eef3f8; color:#0f172a; font-family:"Microsoft YaHei
                 endStr,
                 skipWeekends,
                 (r) => {
+                    if (!shouldIncludeInOnlineRateStats(r)) return;
+
                     const channel = r.logisticsChannel || '未知渠道';
                     const whName = r.whCodeName || '未知仓';
                     const customer = r.customerName || '未知客户';
