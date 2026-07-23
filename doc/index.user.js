@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         物流订单上网率统计助手v8.3
 // @namespace    http://tampermonkey.net/
-// @version      8.6
+// @version      8.8
 // @description  统计OMP物流上网率，支持Excel导出，含五大多维ECharts看板，悬浮按钮支持自由拖拽与开关切换
 // @author       AI Assistant
 // @match        *://*.xlwms.com/*
@@ -412,47 +412,100 @@
     };
 
     // ==========================================
-    // 1. OMP Track-Key 签名算法及 Payload 格式化
+    // 1. 复用 OMP 页面请求实例，由网站自动生成 Track-Key
     // ==========================================
-    const makeTrackKey = function b(e){const t=0,n="",i=8;function a(e){const t=g(e);return r(f(t),t.length*i)}function o(e){return b(a(e))}function s(e){return v(a(e))}function r(e,t){e[t>>5]|=128<<t%32,e[14+(t+64>>>9<<4)]=t;let n=1732584193,i=3989678985,a=2562383614,o=271733878;for(let s=0;s<e.length;s+=16){const t=n,r=i,c=a,h=o;n=l(n,i,a,o,e[s+0],7,-680876936),o=l(o,n,i,a,e[s+1],12,-389564586),a=l(a,o,n,i,e[s+2],17,606105819),i=l(i,a,o,n,e[s+3],22,-1044525330),n=l(n,i,a,o,e[s+4],7,-176418897),o=l(o,n,i,a,e[s+5],12,1200080426),a=l(a,o,n,i,e[s+6],17,-1473231341),i=l(i,a,o,n,e[s+7],22,-45705983),n=l(n,i,a,o,e[s+8],7,1770035416),o=l(o,n,i,a,e[s+9],12,-1958414417),a=l(a,o,n,i,e[s+10],17,-42063),i=l(i,a,o,n,e[s+11],22,-1990404162),n=l(n,i,a,o,e[s+12],7,1804603682),o=l(o,n,i,a,e[s+13],12,-40341101),a=l(a,o,n,i,e[s+14],17,-1502002290),i=l(i,a,o,n,e[s+15],22,1236535329),n=u(n,i,a,o,e[s+1],5,-165796510),o=u(o,n,i,a,e[s+6],9,-1069501632),a=u(a,o,n,i,e[s+11],14,643717713),i=u(i,a,o,n,e[s+0],20,-373897302),n=u(n,i,a,o,e[s+5],5,-701558691),o=u(o,n,i,a,e[s+10],9,38016083),a=u(a,o,n,i,e[s+15],14,-660478335),i=u(i,a,o,n,e[s+4],20,-405537848),n=u(n,i,a,o,e[s+9],5,568446438),o=u(o,n,i,a,e[s+14],9,-1019803690),a=u(a,o,n,i,e[s+3],14,-187363961),i=u(i,a,o,n,e[s+8],20,1163531501),n=u(n,i,a,o,e[s+13],5,-1444681467),o=u(o,n,i,a,e[s+2],9,-51403784),a=u(a,o,n,i,e[s+7],14,1735328473),i=u(i,a,o,n,e[s+12],20,-1926607734),n=d(n,i,a,o,e[s+5],4,-378558),o=d(o,n,i,a,e[s+8],11,-2022574463),a=d(a,o,n,i,e[s+11],16,1839030562),i=d(i,a,o,n,e[s+14],23,-35309556),n=d(n,i,a,o,e[s+1],4,-1530992060),o=d(o,n,i,a,e[s+4],11,1272893353),a=d(a,o,n,i,e[s+7],16,-155497632),i=d(i,a,o,n,e[s+10],23,-1094730640),n=d(n,i,a,o,e[s+13],4,681279174),o=d(o,n,i,a,e[s+0],11,-358537222),a=d(a,o,n,i,e[s+3],16,-722521979),i=d(i,a,o,n,e[s+6],23,76029189),n=d(n,i,a,o,e[s+9],4,-640364487),o=d(o,n,i,a,e[s+12],11,-421815835),a=d(a,o,n,i,e[s+15],16,530742520),i=d(i,a,o,n,e[s+2],23,-995338651),n=p(n,i,a,o,e[s+0],6,-198630844),o=p(o,n,i,a,e[s+7],10,1126891415),a=p(a,o,n,i,e[s+14],15,-1416354905),i=p(i,a,o,n,e[s+5],21,-57434055),n=p(n,i,a,o,e[s+12],6,1700485571),o=p(o,n,i,a,e[s+3],10,-1894986606),a=p(a,o,n,i,e[s+10],15,-1051523),i=p(i,a,o,n,e[s+1],21,-2054922799),n=p(n,i,a,o,e[s+8],6,1873313359),o=p(o,n,i,a,e[s+15],10,-30611744),a=p(a,o,n,i,e[s+6],15,-1560198380),i=p(i,a,o,n,e[s+13],21,1309151649),n=p(n,i,a,o,e[s+4],6,-145523070),o=p(o,n,i,a,e[s+11],10,-1120210379),a=p(a,o,n,i,e[s+2],15,718787259),i=p(i,a,o,n,e[s+9],21,-343485551),n=m(n,t),i=m(i,r),a=m(a,c),o=m(o,h)}return[n,i,a,o]}function c(e,t,n,i,a,o){return m(h(m(m(t,e),m(i,o)),a),n)}function l(e,t,n,i,a,o,s){return c(t&n|~t&i,e,t,a,o,s)}function u(e,t,n,i,a,o,s){return c(t&i|n&~i,e,t,a,o,s)}function d(e,t,n,i,a,o,s){return c(t^n^i,e,t,a,o,s)}function p(e,t,n,i,a,o,s){return c(n^(t|~i),e,t,a,o,s)}function m(e,t){const n=(65535&e)+(65535&t),i=(e>>16)+(t>>16)+(n>>16);return i<<16|65535&n}function h(e,t){return e<<t|e>>>32-t}function g(e){let t="";for(const n of e){const e=n.codePointAt(0);t+=e<=127?String.fromCharCode(e):e<=2047?String.fromCharCode(192|e>>6,128|63&e):e<=65535?String.fromCharCode(224|e>>12,128|e>>6&63,128|63&e):String.fromCharCode(240|e>>18,128|e>>12&63,128|e>>6&63,128|63&e)}return t}function f(e){const t=[],n=(1<<i)-1;for(let a=0;a<e.length*i;a+=i)t[a>>5]|=(e.charCodeAt(a/i)&n)<<a%32;return t}function b(e){const n=t?[48,49,50,51,52,53,54,55,56,57,65,66,67,68,69,70].map((function(e){return String.fromCharCode(e)})).join(""):[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102].map((function(e){return String.fromCharCode(e)})).join("");let i="";for(let t=0;t<4*e.length;t++)i+=n.charAt(e[t>>2]>>t%4*8+4&15)+n.charAt(e[t>>2]>>t%4*8&15);return i}function v(e){const t=[65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,48,49,50,51,52,53,54,55,56,57,43,47].map((function(e){return String.fromCharCode(e)})).join("");let i="";for(let a=0;a<4*e.length;a+=3){const o=(e[a>>2]>>a%4*8&255)<<16|(e[a+1>>2]>>(a+1)%4*8&255)<<8|e[a+2>>2]>>(a+2)%4*8&255;for(let s=0;s<4;s++)8*a+6*s>32*e.length?i+=n:i+=t.charAt(o>>6*(3-s)&63)}return i}const w=Date.now().toString(),y=s(w),C=o(w),x="string"===typeof e?e:JSON.stringify(null==e?{}:e),k=o(x);return y+k+C};
+    let ompHttpClientPromise = null;
+    let ompWebpackRequire = null;
 
-    function isPlainObject(value) {
-        if (Object.prototype.toString.call(value) !== "[object Object]") return false;
-        const proto = Object.getPrototypeOf(value);
-        return proto === Object.prototype || proto === null;
+    function findOmpWebpackQueue() {
+        if (Array.isArray(window.webpackJsonp_OMP)) return window.webpackJsonp_OMP;
+        const queueKey = Object.keys(window).find((key) =>
+            /^webpackJsonp/i.test(key) && Array.isArray(window[key])
+        );
+        return queueKey ? window[queueKey] : null;
     }
 
-    // 格式化 Payload：保证 JSON Keys 按字母排序，确保与 Track-Key 校验算法匹配
-    function normalizePayload(value) {
-        if (value === undefined) return undefined;
-        if (value === null) return null;
+    function captureOmpWebpackRequire(queue) {
+        if (!queue || queue.push === Array.prototype.push) return null;
 
-        if (Array.isArray(value)) {
-            return value.map((item) => {
-                const normalized = normalizePayload(item);
-                return normalized === undefined ? null : normalized;
-            });
-        }
+        const moduleId = `tm_omp_http_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+        let webpackRequire = null;
+        queue.push([
+            [moduleId],
+            {
+                [moduleId]: function(module, exports, require) {
+                    webpackRequire = require;
+                }
+            },
+            [[moduleId]]
+        ]);
+        return webpackRequire;
+    }
 
-        if (!isPlainObject(value)) {
-            return value;
-        }
-
-        const output = {};
-        for (const key of Object.keys(value).sort()) {
-            const normalized = normalizePayload(value[key]);
-            if (normalized !== undefined) {
-                output[key] = normalized;
+    function findOmpHttpClient(webpackRequire) {
+        const moduleCache = webpackRequire?.c || {};
+        for (const cachedModule of Object.values(moduleCache)) {
+            const moduleExports = cachedModule?.exports;
+            const candidates = [moduleExports, moduleExports?.a, moduleExports?.default];
+            for (const candidate of candidates) {
+                const baseURL = String(candidate?.defaults?.baseURL || '').replace(/\/$/, '');
+                if (
+                    typeof candidate === 'function'
+                    && typeof candidate.request === 'function'
+                    && baseURL.endsWith('/gateway')
+                ) {
+                    return candidate;
+                }
             }
         }
-        return output;
+        return null;
     }
 
-    function stringifyPayload(payload) {
-        if (typeof payload === "string") return payload;
-        return JSON.stringify(normalizePayload(payload));
+    async function getOmpHttpClient(timeoutMs = 15000) {
+        if (ompHttpClientPromise) return ompHttpClientPromise;
+
+        ompHttpClientPromise = (async () => {
+            const deadline = Date.now() + timeoutMs;
+            while (Date.now() < deadline) {
+                const queue = findOmpWebpackQueue();
+                if (!ompWebpackRequire) {
+                    ompWebpackRequire = captureOmpWebpackRequire(queue);
+                }
+                const httpClient = findOmpHttpClient(ompWebpackRequire);
+                if (httpClient) {
+                    logger.success('已接入 OMP 页面请求实例，Track-Key 将由网站自动生成');
+                    return httpClient;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+            throw new Error('未能取得 OMP 页面请求实例，请刷新页面并等待订单列表加载完成后重试');
+        })().catch((error) => {
+            ompHttpClientPromise = null;
+            throw error;
+        });
+
+        return ompHttpClientPromise;
     }
 
+    function getOmpClientUrl(apiUrl) {
+        const parsedUrl = new URL(apiUrl, location.origin);
+        if (parsedUrl.origin !== location.origin || !parsedUrl.pathname.startsWith('/gateway/')) {
+            throw new Error(`不允许调用非 OMP Gateway 接口：${parsedUrl.href}`);
+        }
+        return `${parsedUrl.pathname.slice('/gateway'.length)}${parsedUrl.search}`;
+    }
+
+    async function ompPost(apiUrl, payload, headers = {}) {
+        const httpClient = await getOmpHttpClient();
+        const token = localStorage.getItem('omp-token') || '';
+        if (!token) throw new Error('未检测到 omp-token，请先登录 OMP');
+
+        return httpClient.post(getOmpClientUrl(apiUrl), payload, {
+            headers,
+            token,
+            notDebounce: true
+        });
+    }
 
     // ==========================================
     // 2. 拦截器：自动提取系统鉴权 Token
@@ -617,7 +670,7 @@
     }
 
     // ==========================================
-    // 4. API 请求封装 (已添加 Track-Key 支持)
+    // 4. API 请求封装（Track-Key 由 OMP 页面请求实例自动生成）
     // ==========================================
     const API_ONLINE_RATE = "https://omp.xlwms.com/gateway/omp/order/delivery/page";
     const API_ORDER_ADDRESS_INFO = "https://omp.xlwms.com/gateway/omp/order/getAddressInfo";
@@ -673,20 +726,7 @@
             "withVas": ""
         };
 
-        const bodyStr = stringifyPayload(payload);
-        const headers = {
-            ...sysHeaders,
-            "track-key": makeTrackKey(bodyStr)
-        };
-
-        const response = await fetch(API_ONLINE_RATE, {
-            method: 'POST',
-            headers: headers,
-            body: bodyStr
-        });
-
-        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-        const res = await response.json();
+        const res = await ompPost(API_ONLINE_RATE, payload);
         if (res.code !== 200) throw new Error(res.msg || '获取上网数据失败');
         return res.data;
     }
@@ -747,20 +787,7 @@
             "Barcode": options.barcode || ""
         };
 
-        const bodyStr = stringifyPayload(payload);
-        const headers = {
-            ...sysHeaders,
-            "track-key": makeTrackKey(bodyStr)
-        };
-
-        const response = await fetch(API_STOCK_ANALYSIS, {
-            method: 'POST',
-            headers,
-            body: bodyStr
-        });
-
-        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-        const res = await response.json();
+        const res = await ompPost(API_STOCK_ANALYSIS, payload);
         if (res.code !== 200) throw new Error(res.msg || '获取库存分析数据失败');
         return res.data || {};
     }
@@ -779,15 +806,8 @@
 
     async function fetchOutboundRate(whCode, tenantCode, startDate, endDate) {
         const payload = { whCode, startDate, endDate, tenantCode: tenantCode || "2836" };
-        const bodyStr = stringifyPayload(payload);
-        const headers = {
-            ...sysHeaders,
-            "whcode": whCode,
-            "track-key": makeTrackKey(bodyStr)
-        };
-        const res = await fetch(API_OUTBOUND_RATE, { method: 'POST', headers: headers, body: bodyStr });
-        const json = await res.json();
-        return json.data || {};
+        const res = await ompPost(API_OUTBOUND_RATE, payload, { whcode: whCode });
+        return res.data || {};
     }
 
     function sleep(ms) {
